@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>promise</title>
+</head>
+<body>
+<script>
+	
+function get(url,responseType) {
+	return new Promise(function(resolve,reject){
+		var req = new XMLHttpRequest();
+		req.open('GET',url);
+		req.onload = function(){
+			if(req.status==200) {
+				resolve(req.response);
+			}else {
+				reject(Error(req.statusText()));
+			}
+		}
+		req.responseType= responseType||"json";
+
+		req.onError = function(){
+			reject(Error("Network Error"));
+		}
+
+		req.send();
+	})
+}
+
+var baseUrl = './datas/';
+
+get(baseUrl+'chapter1.json').then(function(response){
+	console.log('success',response,'1')
+},function(error){
+	console.log('error',error);
+})
+
+get(baseUrl + 'story.json').then(function(story){
+	 return get(baseUrl + story.chapterUrls[0]);
+}).then(function(chapter1){
+	console.log(chapter1.content);
+})
+
+
+var storyPromise;
+function getChapter(i){
+	storyPromise = storyPromise || get(baseUrl+'story.json');
+
+	return storyPromise.then(function(story){
+		return get(baseUrl+story.chapterUrls[i]);
+	})
+}
+
+/*getChapter(0).then(function(chapter){
+	console.log(chapter.content);
+	return getChapter(1);
+}).then(function(chapter){
+	console.log(chapter.content);
+})*/
+
+
+
+var a = new Promise(function(resolve,reject) {
+	var b = Math.random();
+	if(b > 0.5) {
+		resolve(b);
+	}else {
+		reject(b);
+	}
+})
+
+
+
+a.then(function(value){
+	console.log(value)
+}).catch(function(e){
+	console.log('error',e);
+}).then(function(){
+	console.log('all done');
+}).then(function(){
+	return new Promise(function(a,b){
+		var c = Math.random();
+		if(c > 0.5) {
+			a(c);
+		}else {
+			b(c);
+		}
+		
+	})
+}).then(function(v){
+	console.log(v);
+},function(e){
+	console.log('拦截一次catch将不会再执行了',e)
+}).then(function(v){
+	console.log('我只是个过渡');
+}).catch(function(e){
+	console.log('fail',e);
+})
+
+
+var a = Promise.reject('reason').then(function(){},function(e){
+	console.log(e)
+})
+
+
+
+var oDiv = document.createElement('div');
+oDiv.style.width="800px";
+oDiv.style.margin="10px auto";
+document.body.appendChild(oDiv);
+var str = '';
+
+function addHtmlToPage(str){
+	oDiv.innerHTML += str;
+}
+
+/*get(baseUrl + 'story.json').then(function(response){
+	var chapters = response.chapterUrls;
+	chapters.forEach(function(url){
+		get(baseUrl + url).then(function(chapter){
+			addHtmlToPage(chapter.content);
+		})
+	})
+})*/
+
+//另一种方案
+//var sequence = Promise.resolve();
+get(baseUrl+'story.json').then(function(response){
+	var list = response.chapterUrls
+	list.reduce(function(sequence,url){
+		queue = sequence.then(function(){
+			return get(baseUrl + url)
+		}).then(function(re){
+			addHtmlToPage(re.content);
+		})
+		return queue;
+	},Promise.resolve());
+})
+
+//一起加载之后再then
+get(baseUrl+'story.json').then(function(response){
+	var list = response.chapterUrls;
+	return Promise.all(list.map(function(v){
+		return get(baseUrl +v);
+	}))
+}).then(function(chapters){
+	console.log(chapters);
+}) 
+
+
+
+
+
+
+
+
+
+</script>
+</body>
+</html>
